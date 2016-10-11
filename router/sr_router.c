@@ -71,12 +71,14 @@ void sr_handlepacket(struct sr_instance* sr,
         unsigned int len,
         char* interface/* lent */)
 {
-  /* REQUIRES */
-  assert(sr);
-  assert(packet);
-  assert(interface);
+	/* REQUIRES */
+	assert(sr);
+	assert(packet);
+	assert(interface);
 
-  printf("*** -> Received packet of length %d \n",len);
+	printf("*** -> Received packet of length %d \n",len);
+	printf("IP Header: \n");
+  
 
   /* fill in code here */
 
