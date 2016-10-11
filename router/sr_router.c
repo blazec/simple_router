@@ -75,7 +75,8 @@ void sr_handlepacket(struct sr_instance* sr,
 	assert(sr);
 	assert(packet);
 	assert(interface);
-
+	
+	/*
 	int version;
 	int header_len;
 	int type;
@@ -87,8 +88,10 @@ void sr_handlepacket(struct sr_instance* sr,
 	int checksum;
 	int src;
 	int dest;
+	*/
 
 	printf("*** -> Received packet of length %d \n",len);
+	/*
 	printf("IP Header: \n");
 	printf("\t Version: %d \n", version);
 	printf("\t Header Length: %d \n", header_len);
@@ -101,6 +104,8 @@ void sr_handlepacket(struct sr_instance* sr,
 	printf("\t Checksum: %d \n", checksum);
 	printf("\t Source: %d \n", src);
 	printf("\t Destination: %d \n", dest);
+	*/
+	
   
 
   /* fill in code here */
