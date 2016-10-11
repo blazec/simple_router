@@ -76,8 +76,31 @@ void sr_handlepacket(struct sr_instance* sr,
 	assert(packet);
 	assert(interface);
 
+	int version;
+	int header_len;
+	int type;
+	int packet_len;
+	int id;
+	int offset;
+	int ttl;
+	int protocol;
+	int checksum;
+	int src;
+	int dest;
+
 	printf("*** -> Received packet of length %d \n",len);
 	printf("IP Header: \n");
+	printf("\t Version: %d \n", version);
+	printf("\t Header Length: %d \n", header_len);
+	printf("\t Type of Service: %d \n", type);
+	printf("\t Length: %d \n", packet_len);
+	printf("\t ID: %d \n", id);
+	printf("\t Offset: %d \n", offset);
+	printf("\t TTL: %d \n", ttl);
+	printf("\t Protocol: %d \n", protocol);
+	printf("\t Checksum: %d \n", checksum);
+	printf("\t Source: %d \n", src);
+	printf("\t Destination: %d \n", dest);
   
 
   /* fill in code here */
