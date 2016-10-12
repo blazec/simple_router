@@ -91,6 +91,9 @@ void sr_handlepacket(struct sr_instance* sr,
 	*/
 
 	printf("*** -> Received packet of length %d \n",len);
+	printf("%u \n", packet);
+	print_hdrs(packet, len);
+	printf("%s\n", sr.user);
 	/*
 	printf("IP Header: \n");
 	printf("\t Version: %d \n", version);
