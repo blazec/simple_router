@@ -22,6 +22,9 @@
 #include "sr_arpcache.h"
 #include "sr_utils.h"
 
+#define OP_ARP_REQUEST 1
+#define OP_ARP_REPLY 2
+
 /*---------------------------------------------------------------------
  * Method: sr_init(void)
  * Scope:  Global
@@ -97,7 +100,7 @@ void sr_handlepacket(struct sr_instance* sr,
 	/*printf("%s\n", sr.user);*/
 	
 	if (ethtype == ethertype_arp) {
-		handle_arprep(sr, packet, len, interface);
+		handle_arppacket(sr, packet, len, interface);
 		/*fprintf(stderr, "ARP!!!!!!!!!!!!!!! \n");*/
 	}
 	
@@ -126,7 +129,7 @@ void sr_handlepacket(struct sr_instance* sr,
 
 }/* end sr_ForwardPacket */
 
-void handle_arprep(struct sr_instance* sr,
+void handle_arppacket(struct sr_instance* sr,
 				uint8_t* packet,
 				unsigned int len,
 				const char* name) {
@@ -135,30 +138,33 @@ void handle_arprep(struct sr_instance* sr,
 					
 	struct sr_if* iface = 0;
 	
-	uint8_t* arprep = (uint8_t *)malloc(len);
-	memcpy(arprep, packet, len);
-	
-	sr_ethernet_hdr_t *ehdr = (sr_ethernet_hdr_t *)arprep;
+	/* Create Ethernet header */
+	uint8_t* arppckt = (uint8_t *)malloc(len);
+	memcpy(arppckt, packet, len);
+					
+	sr_ethernet_hdr_t *ehdr = (sr_ethernet_hdr_t *)arppckt;
 	memcpy(ehdr->ether_dhost, ehdr->ether_shost,6);
-	
 	iface = sr_get_interface(sr, name);
-
 	memcpy(ehdr->ether_shost,iface->addr,6);
 	
-	uint8_t* arp = arprep + sizeof(sr_ethernet_hdr_t);
-					
-	sr_arp_hdr_t *arp_hdr = (sr_arp_hdr_t *)(arp);
-					
-	arp_hdr->ar_op = htons(2);
+	/* Create ARP packet */
+	uint8_t* arp_with_eth = arppckt + sizeof(sr_ethernet_hdr_t);					
+	sr_arp_hdr_t *arp_hdr = (sr_arp_hdr_t *)(arp_with_eth);
 	
-	memcpy(arp_hdr->ar_tha, arp_hdr->ar_sha, arp_hdr->ar_hln);
-
-	arp_hdr->ar_tip = arp_hdr->ar_sip;
+	if (arp_hdr->ar_op == htons(OP_ARP_REQUEST)){
+		arp_hdr->ar_op = htons(OP_ARP_REPLY);
+		memcpy(arp_hdr->ar_tha, arp_hdr->ar_sha, arp_hdr->ar_hln);
+		arp_hdr->ar_tip = arp_hdr->ar_sip;
+		memcpy(arp_hdr->ar_sha, iface->addr, arp_hdr->ar_hln);
+		arp_hdr->ar_sip = iface->ip;	
+	}
 	
-	memcpy(arp_hdr->ar_sha, iface->addr, arp_hdr->ar_hln);
+	/*TODO:
+		We want to be able to send out an ARP Requset. An ARP Request must be sent out if:
+			1. An ARP Request is recevied and the request is looking for an IP address that is not ourself; OR
+			2. An IP packet is received and we don't know the next-hop MAC address for that IP packet
 	
-	arp_hdr->ar_sip = iface->ip;
-	
+	*/
 					
 	/*
 	int sr_send_packet(struct sr_instance* sr  borrowed ,
@@ -167,7 +173,7 @@ void handle_arprep(struct sr_instance* sr,
                          const char* iface  borrowed )
 	*/
 	
-	if (sr_send_packet(sr, arprep, len, name) == -1 ) {
+	if (sr_send_packet(sr, arppckt, len, name) == -1 ) {
 		fprintf(stderr, "CANNOT SEND ARP REPLY \n");
 	}
 	
