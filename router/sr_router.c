@@ -89,11 +89,22 @@ void sr_handlepacket(struct sr_instance* sr,
 	int src;
 	int dest;
 	*/
+	uint16_t ethtype = ethertype(packet);
 
 	printf("*** -> Received packet of length %d \n",len);
-	printf("%u \n", packet);
+	/*printf("%u \n", packet);*/
 	print_hdrs(packet, len);
-	printf("%s\n", sr.user);
+	/*printf("%s\n", sr.user);*/
+	
+	if (ethtype == ethertype_arp) {
+		handle_arprep(sr, packet, len, interface);
+		/*fprintf(stderr, "ARP!!!!!!!!!!!!!!! \n");*/
+	}
+	
+	sr_print_if_list(sr);
+	
+	/*  struct sr_if* if_list; list of interfaces */ 
+	
 	/*
 	printf("IP Header: \n");
 	printf("\t Version: %d \n", version);
@@ -114,4 +125,52 @@ void sr_handlepacket(struct sr_instance* sr,
   /* fill in code here */
 
 }/* end sr_ForwardPacket */
+
+void handle_arprep(struct sr_instance* sr,
+				uint8_t* packet,
+				unsigned int len,
+				const char* name) {
+
+	/*sr_arp_hdr_t *arp_hdr = (sr_arp_hdr_t *)(packet);*/
+					
+	struct sr_if* iface = 0;
+	
+	uint8_t* arprep = (uint8_t *)malloc(len);
+	memcpy(arprep, packet, len);
+	
+	sr_ethernet_hdr_t *ehdr = (sr_ethernet_hdr_t *)arprep;
+	memcpy(ehdr->ether_dhost, ehdr->ether_shost,6);
+	
+	iface = sr_get_interface(sr, name);
+
+	memcpy(ehdr->ether_shost,iface->addr,6);
+	
+	uint8_t* arp = arprep + sizeof(sr_ethernet_hdr_t);
+					
+	sr_arp_hdr_t *arp_hdr = (sr_arp_hdr_t *)(arp);
+					
+	arp_hdr->ar_op = htons(2);
+	
+	memcpy(arp_hdr->ar_tha, arp_hdr->ar_sha, arp_hdr->ar_hln);
+
+	arp_hdr->ar_tip = arp_hdr->ar_sip;
+	
+	memcpy(arp_hdr->ar_sha, iface->addr, arp_hdr->ar_hln);
+	
+	arp_hdr->ar_sip = iface->ip;
+	
+					
+	/*
+	int sr_send_packet(struct sr_instance* sr  borrowed ,
+                         uint8_t* buf  borrowed  ,
+                         unsigned int len,
+                         const char* iface  borrowed )
+	*/
+	
+	if (sr_send_packet(sr, arprep, len, name) == -1 ) {
+		fprintf(stderr, "CANNOT SEND ARP REPLY \n");
+	}
+	
+	
+}
 
