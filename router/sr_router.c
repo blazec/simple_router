@@ -100,11 +100,48 @@ void sr_handlepacket(struct sr_instance* sr,
 	/*printf("%s\n", sr.user);*/
 	
 	if (ethtype == ethertype_arp) {
-		handle_arppacket(sr, packet, len, interface);
+		/*
+		struct sr_if* iface = 0;
+		iface = sr_get_interface(sr, interface);
+		
+		uint8_t* arp_packet = (uint8_t *)malloc(len);
+		memcpy(arp_packet, packet, len);
+		sr_ethernet_hdr_t *received_eth_hdr = (sr_ethernet_hdr_t *)arp_packet;
+		
+		uint8_t* eth_hdr = create_ethernet_hdr(received_eth_hdr->ether_shost,
+										iface->addr,
+										received_eth_hdr->ether_type,
+										len);
+										
+		*/
+		/*
+		uint8_t* create_ethernet_hdr(uint8_t ether_dhost[ETHER_ADDR_LEN],
+						uint8_t ether_shost[ETHER_ADDR_LEN],
+						uint16_t ether_type,
+						unsigned int len)
+		*/
+		
+		send_arpreply(sr, packet, len, interface);
+		sr_print_routing_table(sr);
+		
+		
+		
+		
 		/*fprintf(stderr, "ARP!!!!!!!!!!!!!!! \n");*/
+		
+							/*
+	sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t *)arp_packet;
+	memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost,6);
+	iface = sr_get_interface(sr, name);
+	memcpy(eth_hdr->ether_shost,iface->addr,6);
+		*/
+		
+	}
+	else{
+		sr_arpcache_dump(&(sr->cache));
 	}
 	
-	sr_print_if_list(sr);
+	/*sr_print_if_list(sr);*/
 	
 	/*  struct sr_if* if_list; list of interfaces */ 
 	
@@ -129,7 +166,7 @@ void sr_handlepacket(struct sr_instance* sr,
 
 }/* end sr_ForwardPacket */
 
-void handle_arppacket(struct sr_instance* sr,
+void send_arpreply(struct sr_instance* sr,
 				uint8_t* packet,
 				unsigned int len,
 				const char* name) {
@@ -139,25 +176,25 @@ void handle_arppacket(struct sr_instance* sr,
 	struct sr_if* iface = 0;
 	
 	/* Create Ethernet header */
-	uint8_t* arppckt = (uint8_t *)malloc(len);
-	memcpy(arppckt, packet, len);
+	uint8_t* arp_packet = (uint8_t *)malloc(len);
+	memcpy(arp_packet, packet, len);
 					
-	sr_ethernet_hdr_t *ehdr = (sr_ethernet_hdr_t *)arppckt;
-	memcpy(ehdr->ether_dhost, ehdr->ether_shost,6);
+	sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t *)arp_packet;
+	memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost,6);
 	iface = sr_get_interface(sr, name);
-	memcpy(ehdr->ether_shost,iface->addr,6);
+	memcpy(eth_hdr->ether_shost,iface->addr,6);
 	
 	/* Create ARP packet */
-	uint8_t* arp_with_eth = arppckt + sizeof(sr_ethernet_hdr_t);					
-	sr_arp_hdr_t *arp_hdr = (sr_arp_hdr_t *)(arp_with_eth);
+	uint8_t* arp_data = arp_packet + sizeof(sr_ethernet_hdr_t);					
+	sr_arp_hdr_t *arp_hdr = (sr_arp_hdr_t *)(arp_data);
 	
-	if (arp_hdr->ar_op == htons(OP_ARP_REQUEST)){
+	/*if (arp_hdr->ar_op == htons(OP_ARP_REQUEST)){*/
 		arp_hdr->ar_op = htons(OP_ARP_REPLY);
 		memcpy(arp_hdr->ar_tha, arp_hdr->ar_sha, arp_hdr->ar_hln);
 		arp_hdr->ar_tip = arp_hdr->ar_sip;
 		memcpy(arp_hdr->ar_sha, iface->addr, arp_hdr->ar_hln);
 		arp_hdr->ar_sip = iface->ip;	
-	}
+	/*}*/
 	
 	/*TODO:
 		We want to be able to send out an ARP Requset. An ARP Request must be sent out if:
@@ -173,10 +210,63 @@ void handle_arppacket(struct sr_instance* sr,
                          const char* iface  borrowed )
 	*/
 	
-	if (sr_send_packet(sr, arppckt, len, name) == -1 ) {
+	if (sr_send_packet(sr, arp_packet, len, name) == -1 ) {
 		fprintf(stderr, "CANNOT SEND ARP REPLY \n");
 	}
 	
 	
 }
-
+/*
+uint8_t* create_ethernet_hdr(uint8_t ether_dhost[ETHER_ADDR_LEN],
+						uint8_t ether_shost[ETHER_ADDR_LEN],
+						uint16_t*ether_type,
+						unsigned int len) {
+									
+	uint8_t*  eth_packet = (uint8_t*) malloc(len);
+	sr_ethernet_hdr_t* eth_hdr = (sr_ethernet_hdr_t*) eth_packet;
+	memcpy(eth_hdr->ether_dhost, ether_dhost, sizeof(ether_dhost) * ETHER_ADDR_LEN);
+	memcpy(eth_hdr->ether_shost, ether_shost, sizeof(ether_shost) * ETHER_ADDR_LEN);
+	eth_hdr->ether_type = ether_type;
+								
+	return eth_packet;
+}
+*/
+/*
+void send_arppacket(struct sr_instance* sr,
+				unsigned int len,
+				const char* name,
+				uint8_t* eth_hdr,
+				unsigned short ar_hrd,
+				unsigned short ar_pro,
+				unsigned char ar_hln,
+				unsigned char ar_pln,
+				unsigned short ar_op,
+				unsigned char ar_sha[ETHER_ADDR_LEN],
+				uint32_t ar_sip,
+				unsigned char ar_tha[ETHER_ADDR_LEN],
+				uint32_t ar_tip
+				) {
+					
+	uint8_t* arp_packet = eth_hdr;
+					
+	/* Generate data for ARP packet */
+	/*
+	uint8_t* arp_data = eth_hdr + sizeof(sr_ethernet_hdr_t);
+	sr_arp_hdr_t* arp_hdr = (sr_arp_hdr_t*)(arp_data);
+	
+	arp_hdr->ar_hrd = ar_hrd;
+	arp_hdr->ar_pro = ar_pro;
+	arp_hdr->ar_hln = ar_hln;
+	arp_hdr->ar_pln = ar_pln;
+	arp_hdr->ar_op = ar_op;
+	memcpy(arp_hdr->ar_sha, ar_sha, sizeof(ar_sha) * ETHER_ADDR_LEN);
+	arp_hdr->ar_sip = ar_sip;
+	memcpy(arp_hdr->ar_tha, ar_tha, sizeof(ar_tha) * ETHER_ADDR_LEN);
+	arp_hdr->ar_tip = ar_tip;
+	
+	if (sr_send_packet(sr, arp_packet, len, name) == -1 ) {
+		fprintf(stderr, "CANNOT SEND ARP REQUEST \n");
+	}
+				
+}
+*/
