@@ -137,6 +137,13 @@ void sr_handlepacket(struct sr_instance* sr,
 		*/
 		
 	}
+	
+	else if (ethtype == ethertype_ip) {
+		
+		send_arprequest(sr, packet, len, interface);
+		
+	}
+	
 	else{
 		sr_arpcache_dump(&(sr->cache));
 	}
@@ -165,6 +172,35 @@ void sr_handlepacket(struct sr_instance* sr,
   /* fill in code here */
 
 }/* end sr_ForwardPacket */
+
+void send_arprequest(struct sr_instance* sr, uint8_t* packet, unsigned int len, const char* name)
+{
+	/* Assume MAC address is not found in ARP cache. We are using the next IP hop*/
+	struct sr_if* iface = 0;
+	iface = sr_get_interface(sr, name);
+	
+	uint8_t* arp_packet = (uint8_t*) malloc(len);
+	/*memcpy(arp_packet, packet, len);*/
+	
+	sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t*) arp_packet;
+	bzero(eth_hdr->ether_dhost, ETHER_ADDR_LEN);
+	memcpy(eth_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN);
+	
+	/* Create ARP packet */
+	uint8_t* arp_data = sizeof(sr_ethernet_hdr_t) + arp_packet;
+	sr_arp_hdr_t* arp_hdr = (sr_arp_hdr_t *) arp_data;
+	
+	arp_hdr->ar_hrd = arp_hrd_ethernet;
+	arp_hdr->ar_pro = ethertype_ip;
+	arp_hdr->ar_hln = (unsigned char) 6;
+	arp_hdr->ar_pln = (unsigned char) 4;
+	arp_hdr->ar_op = arp_op_request;
+	memcpy(arp_hdr->ar_sha, iface->addr, ETHER_ADDR_LEN);
+	arp_hdr->ar_sip = iface->ip;
+	bzero(arp_hdr->ar_tha, ETHER_ADDR_LEN);
+	/*TODO: Add next hop IP address */
+	
+}
 
 void send_arpreply(struct sr_instance* sr,
 				uint8_t* packet,
