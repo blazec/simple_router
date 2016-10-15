@@ -25,13 +25,13 @@
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
 
     time_t curtime = time(NULL);
-
+    struct sr_arpreq *req;
     for (req = sr->cache.requests; req != NULL; req = req->next) {
         if ((req->times_sent < 5) && (difftime(curtime,req->sent) > 1.0)){
-            handle_arpreq(req);
+            /*handle_arpreq(req);*/
         }
         else if(req->times_sent == 5){
-            //send_host_unreachable(req->packets);
+            /*send_host_unreachable(req->packets);*/
         }
     }
     
