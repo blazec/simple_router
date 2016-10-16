@@ -22,13 +22,17 @@
   should go back to all the sender of packets that were waiting on a reply to this 
   ARP request.
 */
+void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req){
+    printf("%lu\n", req->ip);
+}
+
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
 
     time_t curtime = time(NULL);
     struct sr_arpreq *req;
     for (req = sr->cache.requests; req != NULL; req = req->next) {
         if ((req->times_sent < 5) && (difftime(curtime,req->sent) > 1.0)){
-            /*handle_arpreq(req);*/
+            handle_arpreq(sr, req);
         }
         else if(req->times_sent == 5){
             /*send_host_unreachable(req->packets);*/
@@ -38,6 +42,7 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
     /* Fill this in */
 
 }
+
 
 /* You should not need to touch the rest of this code. */
 
