@@ -79,6 +79,7 @@ void sr_handlepacket(struct sr_instance* sr,
 	assert(packet);
 	assert(interface);
 	
+	struct sr_arpcache *cache = &(sr->cache);
 
 	uint16_t ethtype = ethertype(packet);
 
@@ -88,17 +89,33 @@ void sr_handlepacket(struct sr_instance* sr,
 	/*printf("%s\n", sr.user);*/
 	
 	if (ethtype == ethertype_arp) {
-		
-		
-		send_arpreply(sr, packet, len, interface);
-		sr_print_routing_table(sr);
+
+		uint8_t* arp_data = packet +  sizeof(sr_ethernet_hdr_t);
+		sr_arp_hdr_t* arp_hdr = (sr_arp_hdr_t *) arp_data;
+		if (arp_hdr->ar_op == htons(arp_op_request)){
+			send_arpreply(sr, packet, len, interface);
+			sr_print_routing_table(sr);
+		}
+		else if(arp_hdr->ar_op == htons(arp_op_reply)){
+
+		}
 		
 	}
 	
 	else if (ethtype == ethertype_ip) {
+		uint8_t* ip_data = packet +  sizeof(sr_ethernet_hdr_t);
+		sr_ip_hdr_t *iphdr = (sr_ip_hdr_t *)(ip_data);
+		struct sr_arpentry* entry = sr_arpcache_lookup(cache, iphdr->ip_dst);
+		if(entry){
 
+		}
+		else{
+			char outgoing_iface[sr_IFACE_NAMELEN];
+			printf("%s\n",sr_longest_prefix_iface(sr, iphdr->ip_dst, &outgoing_iface));
+			sr_arpcache_queuereq(cache, iphdr->ip_dst, packet, len, outgoing_iface);
+		}
 		
-		send_arprequest(sr, htonl(3232236033));
+		/*send_arprequest(sr, htonl(3232236033));*/
 		print_hdrs(packet, len);
 		
 	}
@@ -113,6 +130,8 @@ void sr_handlepacket(struct sr_instance* sr,
 
 }/* end sr_ForwardPacket */
 
+
+
 uint32_t parse_ip_address(char* ip_address) {
 	
 	uint32_t converted_ip_address;
@@ -125,14 +144,14 @@ uint32_t parse_ip_address(char* ip_address) {
 }
 
 
-void send_arprequest(struct sr_instance* sr, uint32_t ip)
+void send_arprequest(struct sr_instance* sr, uint32_t ip, char* name)
 {
 	unsigned int len=42;
 	/* Assume MAC address is not found in ARP cache. We are using the next IP hop*/
 	struct sr_if* iface = 0;
 
 
-	iface = sr_get_interface_byip(sr, ip);
+	iface = sr_get_interface(sr, name);
 	uint8_t broadcast_addr[ETHER_ADDR_LEN]  = {255, 255, 255, 255, 255, 255};
 	
 	uint8_t* arp_packet = (uint8_t*) malloc(len);
@@ -156,7 +175,7 @@ void send_arprequest(struct sr_instance* sr, uint32_t ip)
 	memcpy(arp_hdr->ar_sha, iface->addr, ETHER_ADDR_LEN);
 	arp_hdr->ar_sip = iface->ip;
 	bzero(arp_hdr->ar_tha, ETHER_ADDR_LEN);
-	arp_hdr->ar_tip = htonl(3232236034);
+	arp_hdr->ar_tip = ip;
 	
 	if (sr_send_packet(sr, arp_packet, len, iface->name) == -1 ) {
 		fprintf(stderr, "CANNOT SEND ARP REQUEST \n");

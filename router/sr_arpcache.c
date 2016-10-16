@@ -23,7 +23,12 @@
   ARP request.
 */
 void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req){
-    printf("%lu\n", req->ip);
+    printf("ip of req that needs sending %lu\n", ntohl(req->ip));
+    req->times_sent++;
+    req->sent = time(NULL);
+    printf("outgoing interface of arp %s\n", req->packets->iface);
+    send_arprequest(sr, req->ip, req->packets->iface);
+
 }
 
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 

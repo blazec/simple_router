@@ -170,9 +170,45 @@ void sr_print_routing_entry(struct sr_rt* entry)
     assert(entry);
     assert(entry->interface);
 
-    printf("%s\t\t",inet_ntoa(entry->dest));
+    /*printf("%s\t\t",inet_ntoa(entry->dest));*/
+    
+    printf("%lu\t\t",ntohl(entry->dest.s_addr));
     printf("%s\t",inet_ntoa(entry->gw));
     printf("%s\t",inet_ntoa(entry->mask));
     printf("%s\n",entry->interface);
 
 } /* -- sr_print_routing_entry -- */
+
+char* sr_longest_prefix_iface(struct sr_instance* sr, uint32_t ip, char* iface){
+    struct sr_rt* rt_walker = 0;
+    /*char iface[sr_IFACE_NAMELEN];*/
+    uint32_t diff = 0;
+
+    if(sr->routing_table == 0)
+    {
+        printf(" *warning* Routing table empty \n");
+        return ("lol");
+    }
+
+    rt_walker = sr->routing_table;
+    
+    /*comment to self : lowest diff of integer subtraction between ip's will give you longest prefix*/
+    
+    diff = abs(ntohl(rt_walker->dest.s_addr) - ntohl(ip));
+
+    if(diff < 16777216){
+        memcpy(iface, rt_walker->interface, sr_IFACE_NAMELEN);
+    }
+    while(rt_walker->next)
+    {
+        rt_walker = rt_walker->next; 
+        if(abs(ntohl(rt_walker->dest.s_addr) - ntohl(ip)) < diff){
+            
+            diff = abs(ntohl(rt_walker->dest.s_addr) - ntohl(ip));
+            memcpy(iface, rt_walker->interface, sr_IFACE_NAMELEN);
+        }
+        
+    }
+    /*printf("OUTGOING INTEERFACE: %s\n", iface);*/
+    return iface;
+}
