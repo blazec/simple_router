@@ -79,6 +79,7 @@ void sr_handlepacket(struct sr_instance* sr,
 	assert(packet);
 	assert(interface);
 	
+	struct sr_arpreq *req;
 	struct sr_arpcache *cache = &(sr->cache);
 
 	uint16_t ethtype = ethertype(packet);
@@ -97,23 +98,21 @@ void sr_handlepacket(struct sr_instance* sr,
 			sr_print_routing_table(sr);
 		}
 		else if(arp_hdr->ar_op == htons(arp_op_reply)){
-			sr_arpcache_insert(cache, arp_hdr->ar_sha, arp_hdr->ar_sip);
+			req = sr_arpcache_insert(cache, arp_hdr->ar_sha, arp_hdr->ar_sip);
+			struct sr_packet *pkt, *nxt;
+        
+        	for (pkt = req->packets; pkt; pkt = nxt) {
+        		handle_ip(sr, pkt->buf, pkt->len);
+            	nxt = pkt->next;
+            }
+            sr_arpreq_destroy(cache, req);
 		}
 		
 	}
 	
 	else if (ethtype == ethertype_ip) {
-		uint8_t* ip_data = packet +  sizeof(sr_ethernet_hdr_t);
-		sr_ip_hdr_t *iphdr = (sr_ip_hdr_t *)(ip_data);
-		struct sr_arpentry* entry = sr_arpcache_lookup(cache, iphdr->ip_dst);
-		if(entry){
 
-		}
-		else{
-			char outgoing_iface[sr_IFACE_NAMELEN];
-			printf("%s\n",sr_longest_prefix_iface(sr, iphdr->ip_dst, &outgoing_iface));
-			sr_arpcache_queuereq(cache, iphdr->ip_dst, packet, len, outgoing_iface);
-		}
+		handle_ip(sr, packet, len);
 		
 		/*send_arprequest(sr, htonl(3232236033));*/
 		print_hdrs(packet, len);
@@ -130,6 +129,95 @@ void sr_handlepacket(struct sr_instance* sr,
 
 }/* end sr_ForwardPacket */
 
+void handle_ip(struct sr_instance* sr, 
+		uint8_t * packet/* lent */,
+        unsigned int len)
+
+{
+	struct sr_if* iface = 0;
+	char outgoing_iface[sr_IFACE_NAMELEN];
+	struct sr_arpcache *cache = &(sr->cache);
+	uint8_t* ip_data = packet +  sizeof(sr_ethernet_hdr_t);
+	sr_ip_hdr_t *iphdr = (sr_ip_hdr_t *)(ip_data);
+
+	sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t*) packet;
+
+	iface = sr_get_interface_byip(sr, iphdr->ip_dst);
+	if(iface){
+		handle_icmp(sr, packet, iface, 0, 0);
+		return;
+	}
+
+	struct sr_arpentry* entry = sr_arpcache_lookup(cache, iphdr->ip_dst);
+	printf("%s\n",sr_longest_prefix_iface(sr, iphdr->ip_dst, &outgoing_iface));
+	iface = sr_get_interface(sr, outgoing_iface);
+
+	if(entry){
+		memcpy(eth_hdr->ether_dhost, entry->mac, ETHER_ADDR_LEN);
+		memcpy(eth_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN);
+
+		iphdr->ip_ttl--;
+		if(iphdr->ip_ttl==0){
+			handle_icmp(sr, packet, iface, 11, 0);
+		}
+		else{
+
+			iphdr->ip_sum = 0;
+			fprintf(stderr, "checksum: %d\n", iphdr->ip_sum);
+			iphdr->ip_sum = cksum(iphdr, sizeof(sr_ip_hdr_t));
+			fprintf(stderr, "calculated: %d\n", iphdr->ip_sum);
+			if (sr_send_packet(sr, packet, len, iface->name) == -1 ) {
+				fprintf(stderr, "CANNOT FORWARD IP PACKET \n");
+			}
+		}
+	}
+	else{ 
+		sr_arpcache_queuereq(cache, iphdr->ip_dst, packet, len, outgoing_iface);
+	}
+}
+
+void handle_icmp(struct sr_instance* sr, 
+				uint8_t * packet, 
+				struct sr_if* iface, 
+				int type, int code)
+{
+	unsigned int len=98;
+
+	uint8_t* icmp_packet = (uint8_t*) malloc(len);
+
+	sr_ethernet_hdr_t *og_eth_hdr = (sr_ethernet_hdr_t*) packet;
+	sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t*) icmp_packet;
+
+	uint8_t* og_ip_data = packet +  sizeof(sr_ethernet_hdr_t);
+	sr_ip_hdr_t *og_ip_hdr = (sr_ip_hdr_t *)(og_ip_data);
+
+	/*bzero(eth_hdr->ether_dhost, 6);*/
+	memcpy(eth_hdr->ether_dhost, og_eth_hdr->ether_shost, ETHER_ADDR_LEN);
+	memcpy(eth_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN);
+	eth_hdr->ether_type = htons(ethertype_ip);
+
+	/* Create IP packet */
+	uint8_t* ip_data = icmp_packet +  sizeof(sr_ethernet_hdr_t);
+	sr_ip_hdr_t* ip_hdr = (sr_ip_hdr_t *)(ip_data);
+
+	ip_hdr->ip_v = (unsigned int) 4;
+	ip_hdr->ip_hl = og_ip_hdr->ip_hl;
+	ip_hdr->ip_tos = og_ip_hdr->ip_tos;
+	ip_hdr->ip_len = htons(84);
+	ip_hdr->ip_id = og_ip_hdr->ip_id;
+	ip_hdr->ip_off = 0;
+	ip_hdr->ip_ttl = 64;
+	ip_hdr->ip_p = ip_protocol_icmp;
+
+	ip_hdr->ip_src = iface->ip;
+	ip_hdr->ip_dst = og_ip_hdr->ip_src;
+	fprintf(stderr, "OLD IP HEADER\n");
+	print_hdr_ip(og_ip_data);
+	fprintf(stderr, "NEW IP HEADER\n");
+	print_hdr_ip(ip_data);
+
+
+}
 
 void send_arprequest(struct sr_instance* sr, uint32_t ip, char* name)
 {
