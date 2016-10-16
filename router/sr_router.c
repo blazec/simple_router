@@ -183,41 +183,49 @@ void handle_icmp(struct sr_instance* sr,
 {
 	unsigned int len=98;
 
-	
+	struct sr_arpcache *cache = &(sr->cache);
 
 	sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t*) packet;
 	
 
 	uint8_t* ip_data = packet +  sizeof(sr_ethernet_hdr_t);
-	
-	/*bzero(eth_hdr->ether_dhost, 6);*/
-	memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost, ETHER_ADDR_LEN);
-	memcpy(eth_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN);
-	eth_hdr->ether_type = htons(ethertype_ip);
-
-	/* Create IP packet */
-	
 	sr_ip_hdr_t* ip_hdr = (sr_ip_hdr_t *)(ip_data);
 
-	ip_hdr->ip_ttl = 100;
-	ip_hdr->ip_dst = ip_hdr->ip_src;
-	ip_hdr->ip_src = iface->ip;
-	ip_hdr->ip_sum = cksum(ip_data, sizeof(sr_ip_hdr_t));
+	struct sr_arpentry* entry = sr_arpcache_lookup(cache, ip_hdr->ip_src);
 	
+	if(entry){
+		/*bzero(eth_hdr->ether_dhost, 6);*/
+		memcpy(eth_hdr->ether_dhost, entry->mac, ETHER_ADDR_LEN);
+		memcpy(eth_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN);
+		eth_hdr->ether_type = htons(ethertype_ip);
 
-	uint8_t* icmp_data = packet +  sizeof(sr_ethernet_hdr_t)+  sizeof(sr_ip_hdr_t);
-	if(type == 0){
-		sr_icmp_hdr_t* icmp_hdr = (sr_icmp_hdr_t *)icmp_data;
-		icmp_hdr->icmp_type = (uint8_t)0;
-		icmp_hdr->icmp_code = (uint8_t)0;
-		icmp_hdr->icmp_sum = 0;
-		icmp_hdr->icmp_sum = cksum(icmp_data, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
-		print_hdr_icmp(icmp_data);
+		/* Create IP packet */
+		
+		
+
+		ip_hdr->ip_ttl = 100;
+		ip_hdr->ip_dst = ip_hdr->ip_src;
+		ip_hdr->ip_src = iface->ip;
+		ip_hdr->ip_sum = cksum(ip_data, sizeof(sr_ip_hdr_t));
+		
+
+		uint8_t* icmp_data = packet +  sizeof(sr_ethernet_hdr_t)+  sizeof(sr_ip_hdr_t);
+		if(type == 0){
+			sr_icmp_hdr_t* icmp_hdr = (sr_icmp_hdr_t *)icmp_data;
+			icmp_hdr->icmp_type = (uint8_t)0;
+			icmp_hdr->icmp_code = (uint8_t)0;
+			icmp_hdr->icmp_sum = 0;
+			icmp_hdr->icmp_sum = cksum(icmp_data, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
+			print_hdr_icmp(icmp_data);
+		}
+		printf("%s\n", iface->name);
+		if (sr_send_packet(sr, packet, len, iface->name) == -1 ) {
+					fprintf(stderr, "CANNOT SEND ICMP PACKET \n");
+				}
 	}
-	printf("%s\n", iface->name);
-	if (sr_send_packet(sr, packet, len, iface->name) == -1 ) {
-				fprintf(stderr, "CANNOT SEND ICMP PACKET \n");
-			}
+	else{
+		sr_arpcache_queuereq(cache, ip_hdr->ip_src, packet, len, iface->name);
+	}
 
 }
 
