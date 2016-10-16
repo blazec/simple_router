@@ -183,39 +183,41 @@ void handle_icmp(struct sr_instance* sr,
 {
 	unsigned int len=98;
 
-	uint8_t* icmp_packet = (uint8_t*) malloc(len);
+	
 
-	sr_ethernet_hdr_t *og_eth_hdr = (sr_ethernet_hdr_t*) packet;
-	sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t*) icmp_packet;
+	sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t*) packet;
+	
 
-	uint8_t* og_ip_data = packet +  sizeof(sr_ethernet_hdr_t);
-	sr_ip_hdr_t *og_ip_hdr = (sr_ip_hdr_t *)(og_ip_data);
-
+	uint8_t* ip_data = packet +  sizeof(sr_ethernet_hdr_t);
+	
 	/*bzero(eth_hdr->ether_dhost, 6);*/
-	memcpy(eth_hdr->ether_dhost, og_eth_hdr->ether_shost, ETHER_ADDR_LEN);
+	memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost, ETHER_ADDR_LEN);
 	memcpy(eth_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN);
 	eth_hdr->ether_type = htons(ethertype_ip);
 
 	/* Create IP packet */
-	uint8_t* ip_data = icmp_packet +  sizeof(sr_ethernet_hdr_t);
+	
 	sr_ip_hdr_t* ip_hdr = (sr_ip_hdr_t *)(ip_data);
 
-	ip_hdr->ip_v = (unsigned int) 4;
-	ip_hdr->ip_hl = og_ip_hdr->ip_hl;
-	ip_hdr->ip_tos = og_ip_hdr->ip_tos;
-	ip_hdr->ip_len = htons(84);
-	ip_hdr->ip_id = og_ip_hdr->ip_id;
-	ip_hdr->ip_off = 0;
-	ip_hdr->ip_ttl = 64;
-	ip_hdr->ip_p = ip_protocol_icmp;
-
+	ip_hdr->ip_ttl = 100;
+	ip_hdr->ip_dst = ip_hdr->ip_src;
 	ip_hdr->ip_src = iface->ip;
-	ip_hdr->ip_dst = og_ip_hdr->ip_src;
-	fprintf(stderr, "OLD IP HEADER\n");
-	print_hdr_ip(og_ip_data);
-	fprintf(stderr, "NEW IP HEADER\n");
-	print_hdr_ip(ip_data);
+	ip_hdr->ip_sum = cksum(ip_data, sizeof(sr_ip_hdr_t));
+	
 
+	uint8_t* icmp_data = packet +  sizeof(sr_ethernet_hdr_t)+  sizeof(sr_ip_hdr_t);
+	if(type == 0){
+		sr_icmp_hdr_t* icmp_hdr = (sr_icmp_hdr_t *)icmp_data;
+		icmp_hdr->icmp_type = (uint8_t)0;
+		icmp_hdr->icmp_code = (uint8_t)0;
+		icmp_hdr->icmp_sum = 0;
+		icmp_hdr->icmp_sum = cksum(icmp_data, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
+		print_hdr_icmp(icmp_data);
+	}
+	printf("%s\n", iface->name);
+	if (sr_send_packet(sr, packet, len, iface->name) == -1 ) {
+				fprintf(stderr, "CANNOT SEND ICMP PACKET \n");
+			}
 
 }
 
