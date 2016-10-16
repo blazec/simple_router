@@ -88,7 +88,7 @@ void sr_handlepacket(struct sr_instance* sr,
 
 	printf("*** -> Received packet of length %d \n",len);
 	/*printf("%u \n", packet);*/
-	print_hdrs(packet, len);
+	
 	/*printf("%s\n", sr.user);*/
 	
 	if (ethtype == ethertype_arp) {
@@ -118,7 +118,7 @@ void sr_handlepacket(struct sr_instance* sr,
 		handle_ip(sr, packet, len, interface);
 		
 		/*send_arprequest(sr, htonl(3232236033));*/
-		print_hdrs(packet, len);
+		
 		
 	}
 	
@@ -150,7 +150,13 @@ void handle_ip(struct sr_instance* sr,
 	if(iface){
 		sr_longest_prefix_iface(sr, iphdr->ip_src, outgoing_iface);
 		iface = sr_get_interface(sr, outgoing_iface);
-		handle_icmp(sr, packet, iface, 0, 0);
+		if(iphdr->ip_p == ip_protocol_icmp){
+			handle_icmp(sr, packet, iface, 0, 0);
+		}
+		else{
+			handle_icmp(sr, packet, iface, 3, 3);
+		}
+		
 		return;
 	}
 
@@ -158,24 +164,27 @@ void handle_ip(struct sr_instance* sr,
 	sr_longest_prefix_iface(sr, iphdr->ip_dst, outgoing_iface);
 	iface = sr_get_interface(sr, outgoing_iface);
 
+	
+	if(iphdr->ip_ttl==1){
+		printf("Sending TYPE 11 ICMP\n" );
+		print_hdrs(packet, len);
+		iface = sr_get_interface(sr, name);
+		handle_icmp(sr, packet, iface, 11, 0);
+		return;
+	}
+
 	if(entry){
 		memcpy(eth_hdr->ether_dhost, entry->mac, ETHER_ADDR_LEN);
 		memcpy(eth_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN);
 
+		iphdr->ip_sum = 0;
 		iphdr->ip_ttl--;
-		if(iphdr->ip_ttl==0){
-			handle_icmp(sr, packet, iface, 11, 0);
-		}
-		else{
+		iphdr->ip_sum = cksum(iphdr, sizeof(sr_ip_hdr_t));
 
-			iphdr->ip_sum = 0;
-			fprintf(stderr, "checksum: %d\n", iphdr->ip_sum);
-			iphdr->ip_sum = cksum(iphdr, sizeof(sr_ip_hdr_t));
-			fprintf(stderr, "calculated: %d\n", iphdr->ip_sum);
-			if (sr_send_packet(sr, packet, len, iface->name) == -1 ) {
-				fprintf(stderr, "CANNOT FORWARD IP PACKET \n");
-			}
+		if (sr_send_packet(sr, packet, len, iface->name) == -1 ) {
+			fprintf(stderr, "CANNOT FORWARD IP PACKET \n");
 		}
+		
 	}
 	else if(iface){ 
 		sr_arpcache_queuereq(cache, iphdr->ip_dst, packet, len, outgoing_iface);
@@ -222,32 +231,34 @@ void handle_icmp(struct sr_instance* sr,
 
 			ip_hdr->ip_src = ip_hdr->ip_dst;
 
-			icmp_hdr->icmp_type = (uint8_t)0;
-			icmp_hdr->icmp_code = (uint8_t)0;
+			icmp_hdr->icmp_type = (uint8_t)type;
+			icmp_hdr->icmp_code = (uint8_t)code;
 			icmp_hdr->icmp_sum = 0;
-			
-			print_hdr_icmp(icmp_data);
+		
 			icmp_hdr->icmp_sum = cksum(icmp_data, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
 		}
-		else if(type == 3){
+		else if(type == 3 || type == 11){
 			len = 70;
 			sr_icmp_t3_hdr_t* icmp_hdr = (sr_icmp_t3_hdr_t *)icmp_data;
 
 			ip_hdr->ip_src = iface->ip;
 			ip_hdr->ip_len = htons(56);
 
-			icmp_hdr->icmp_type = (uint8_t)3;
-			icmp_hdr->icmp_code = (uint8_t)0;
+			icmp_hdr->icmp_type = (uint8_t)type;
+			icmp_hdr->icmp_code = (uint8_t)code;
 			icmp_hdr->icmp_sum = 0;
+			
 			memcpy(icmp_hdr->data, icmp_payload, (sizeof(sr_ip_hdr_t) +8));
 			icmp_hdr->icmp_sum = cksum(icmp_data, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
 			
 		}
 
 		
+
 		printf("%s\n", iface->name);
 
 		/* Create IP packet */
+		ip_hdr->ip_p = ip_protocol_icmp;
 		ip_hdr->ip_ttl = 100;	
 		ip_hdr->ip_sum = 0;
 		ip_hdr->ip_dst = entry->ip;	
