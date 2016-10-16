@@ -140,7 +140,7 @@ void sr_handlepacket(struct sr_instance* sr,
 	
 	else if (ethtype == ethertype_ip) {
 		
-		send_arprequest(sr, packet, len, interface);
+		send_arprequest(sr, packet, 42, interface);
 		print_hdrs(packet, len);
 		
 	}
@@ -190,27 +190,30 @@ void send_arprequest(struct sr_instance* sr, uint8_t* packet, unsigned int len, 
 	/* Assume MAC address is not found in ARP cache. We are using the next IP hop*/
 	struct sr_if* iface = 0;
 	iface = sr_get_interface(sr, name);
+	uint8_t broadcast_addr[ETHER_ADDR_LEN]  = {255, 255, 255, 255, 255, 255};
 	
 	uint8_t* arp_packet = (uint8_t*) malloc(len);
 	/*memcpy(arp_packet, packet, len);*/
 	
 	sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t*) arp_packet;
-	bzero(eth_hdr->ether_dhost, ETHER_ADDR_LEN);
-	memcpy(eth_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN);
+	/*bzero(eth_hdr->ether_dhost, 6);*/
+	memcpy(eth_hdr->ether_dhost, broadcast_addr, ETHER_ADDR_LEN);
+	memcpy(eth_hdr->ether_shost, iface->addr, 6);
+	eth_hdr->ether_type = htons(ethertype_arp);
 	
 	/* Create ARP packet */
-	uint8_t* arp_data = sizeof(sr_ethernet_hdr_t) + arp_packet;
+	uint8_t* arp_data = arp_packet +  sizeof(sr_ethernet_hdr_t);
 	sr_arp_hdr_t* arp_hdr = (sr_arp_hdr_t *) arp_data;
 	
-	arp_hdr->ar_hrd = arp_hrd_ethernet;
-	arp_hdr->ar_pro = ethertype_ip;
+	arp_hdr->ar_hrd = htons(arp_hrd_ethernet);
+	arp_hdr->ar_pro = htons(ethertype_ip);
 	arp_hdr->ar_hln = (unsigned char) 6;
 	arp_hdr->ar_pln = (unsigned char) 4;
-	arp_hdr->ar_op = arp_op_request;
+	arp_hdr->ar_op = htons(arp_op_request);
 	memcpy(arp_hdr->ar_sha, iface->addr, ETHER_ADDR_LEN);
 	arp_hdr->ar_sip = iface->ip;
 	bzero(arp_hdr->ar_tha, ETHER_ADDR_LEN);
-	arp_hdr->ar_tip = parse_ip_address("192.168.2.1");
+	arp_hdr->ar_tip = htonl(3232236033);
 	
 	if (sr_send_packet(sr, arp_packet, len, name) == -1 ) {
 		fprintf(stderr, "CANNOT SEND ARP REQUEST \n");
@@ -247,7 +250,7 @@ void send_arpreply(struct sr_instance* sr,
 		memcpy(arp_hdr->ar_sha, iface->addr, arp_hdr->ar_hln);
 		arp_hdr->ar_sip = iface->ip;	
 	/*}*/
-	
+	printf("IP ADDRESS: %lu \n", ntohl(arp_hdr->ar_tip));
 	/*TODO:
 		We want to be able to send out an ARP Requset. An ARP Request must be sent out if:
 			1. An ARP Request is recevied and the request is looking for an IP address that is not ourself; OR
