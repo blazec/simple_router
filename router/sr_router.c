@@ -97,7 +97,7 @@ void sr_handlepacket(struct sr_instance* sr,
 			sr_print_routing_table(sr);
 		}
 		else if(arp_hdr->ar_op == htons(arp_op_reply)){
-
+			sr_arpcache_insert(cache, arp_hdr->ar_sha, arp_hdr->ar_sip);
 		}
 		
 	}
@@ -129,19 +129,6 @@ void sr_handlepacket(struct sr_instance* sr,
   /* fill in code here */
 
 }/* end sr_ForwardPacket */
-
-
-
-uint32_t parse_ip_address(char* ip_address) {
-	
-	uint32_t converted_ip_address;
-	char ipbytes[4];
-	
-	sscanf(ip_address, "%uhh.%uhh.%uhh.%uhh", &ipbytes[3], &ipbytes[2], &ipbytes[1], &ipbytes[0]);
-	converted_ip_address = ipbytes[0] | ipbytes[1] <<8 | ipbytes[2] << 16 | ipbytes[3] <<24;
-	
-	return converted_ip_address;
-}
 
 
 void send_arprequest(struct sr_instance* sr, uint32_t ip, char* name)
