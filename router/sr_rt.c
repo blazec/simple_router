@@ -170,16 +170,16 @@ void sr_print_routing_entry(struct sr_rt* entry)
     assert(entry);
     assert(entry->interface);
 
-    /*printf("%s\t\t",inet_ntoa(entry->dest));*/
+    printf("%s\t\t",inet_ntoa(entry->dest));
     
-    printf("%lu\t\t",ntohl(entry->dest.s_addr));
+    /*printf("%lu\t\t",ntohl(entry->dest.s_addr));*/
     printf("%s\t",inet_ntoa(entry->gw));
     printf("%s\t",inet_ntoa(entry->mask));
     printf("%s\n",entry->interface);
 
 } /* -- sr_print_routing_entry -- */
 
-char* sr_longest_prefix_iface(struct sr_instance* sr, uint32_t ip, char* iface){
+void sr_longest_prefix_iface(struct sr_instance* sr, uint32_t ip, char* iface){
     struct sr_rt* rt_walker = 0;
     /*char iface[sr_IFACE_NAMELEN];*/
     uint32_t diff = 0;
@@ -187,7 +187,7 @@ char* sr_longest_prefix_iface(struct sr_instance* sr, uint32_t ip, char* iface){
     if(sr->routing_table == 0)
     {
         printf(" *warning* Routing table empty \n");
-        return ("lol");
+        return ;
     }
 
     rt_walker = sr->routing_table;
@@ -210,5 +210,5 @@ char* sr_longest_prefix_iface(struct sr_instance* sr, uint32_t ip, char* iface){
         
     }
     /*printf("OUTGOING INTEERFACE: %s\n", iface);*/
-    return iface;
+    return;
 }

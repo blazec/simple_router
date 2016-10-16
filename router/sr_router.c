@@ -13,6 +13,8 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <string.h>
+#include <stdlib.h>
 
 
 #include "sr_if.h"
@@ -97,6 +99,7 @@ void sr_handlepacket(struct sr_instance* sr,
 			send_arpreply(sr, packet, len, interface);
 			sr_print_routing_table(sr);
 		}
+
 		else if(arp_hdr->ar_op == htons(arp_op_reply)){
 			req = sr_arpcache_insert(cache, arp_hdr->ar_sha, arp_hdr->ar_sip);
 			struct sr_packet *pkt, *nxt;
@@ -149,7 +152,7 @@ void handle_ip(struct sr_instance* sr,
 	}
 
 	struct sr_arpentry* entry = sr_arpcache_lookup(cache, iphdr->ip_dst);
-	printf("%s\n",sr_longest_prefix_iface(sr, iphdr->ip_dst, &outgoing_iface));
+	sr_longest_prefix_iface(sr, iphdr->ip_dst, outgoing_iface);
 	iface = sr_get_interface(sr, outgoing_iface);
 
 	if(entry){
@@ -297,7 +300,7 @@ void send_arpreply(struct sr_instance* sr,
 		memcpy(arp_hdr->ar_sha, iface->addr, arp_hdr->ar_hln);
 		arp_hdr->ar_sip = iface->ip;	
 	/*}*/
-	printf("IP ADDRESS: %lu \n", ntohl(arp_hdr->ar_tip));
+	/*printf("IP ADDRESS: %lu \n", ntohl(arp_hdr->ar_tip));*/
 	/*TODO:
 		We want to be able to send out an ARP Requset. An ARP Request must be sent out if:
 			1. An ARP Request is recevied and the request is looking for an IP address that is not ourself; OR

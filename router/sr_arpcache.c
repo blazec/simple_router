@@ -23,7 +23,7 @@
   ARP request.
 */
 void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req){
-    printf("ip of req that needs sending %lu\n", ntohl(req->ip));
+    /*printf("ip of req that needs sending %lu\n", ntohl(req->ip));*/
     req->times_sent++;
     req->sent = time(NULL);
     printf("outgoing interface of arp %s\n", req->packets->iface);

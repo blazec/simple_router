@@ -42,7 +42,7 @@ void sr_add_rt_entry(struct sr_instance*, struct in_addr,struct in_addr,
                   struct in_addr, char*);
 void sr_print_routing_table(struct sr_instance* sr);
 void sr_print_routing_entry(struct sr_rt* entry);
-char* sr_longest_prefix_iface(struct sr_instance* sr, uint32_t ip, char* iface);
+void sr_longest_prefix_iface(struct sr_instance* sr, uint32_t ip, char* iface);
 
 
 #endif  /* --  sr_RT_H -- */
