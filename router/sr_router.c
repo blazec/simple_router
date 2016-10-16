@@ -141,6 +141,7 @@ void sr_handlepacket(struct sr_instance* sr,
 	else if (ethtype == ethertype_ip) {
 		
 		send_arprequest(sr, packet, len, interface);
+		print_hdrs(packet, len);
 		
 	}
 	
@@ -173,6 +174,17 @@ void sr_handlepacket(struct sr_instance* sr,
 
 }/* end sr_ForwardPacket */
 
+uint32_t parse_ip_address(char* ip_address) {
+	
+	uint32_t converted_ip_address;
+	char ipbytes[4];
+	
+	sscanf(ip_address, "%uhh.%uhh.%uhh.%uhh", &ipbytes[3], &ipbytes[2], &ipbytes[1], &ipbytes[0]);
+	converted_ip_address = ipbytes[0] | ipbytes[1] <<8 | ipbytes[2] << 16 | ipbytes[3] <<24;
+	
+	return converted_ip_address;
+}
+
 void send_arprequest(struct sr_instance* sr, uint8_t* packet, unsigned int len, const char* name)
 {
 	/* Assume MAC address is not found in ARP cache. We are using the next IP hop*/
@@ -198,7 +210,11 @@ void send_arprequest(struct sr_instance* sr, uint8_t* packet, unsigned int len, 
 	memcpy(arp_hdr->ar_sha, iface->addr, ETHER_ADDR_LEN);
 	arp_hdr->ar_sip = iface->ip;
 	bzero(arp_hdr->ar_tha, ETHER_ADDR_LEN);
-	/*TODO: Add next hop IP address */
+	arp_hdr->ar_tip = parse_ip_address("192.168.2.1");
+	
+	if (sr_send_packet(sr, arp_packet, len, name) == -1 ) {
+		fprintf(stderr, "CANNOT SEND ARP REQUEST \n");
+	}
 	
 }
 
@@ -252,6 +268,7 @@ void send_arpreply(struct sr_instance* sr,
 	
 	
 }
+
 /*
 uint8_t* create_ethernet_hdr(uint8_t ether_dhost[ETHER_ADDR_LEN],
 						uint8_t ether_shost[ETHER_ADDR_LEN],
