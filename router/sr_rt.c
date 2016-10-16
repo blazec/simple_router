@@ -194,7 +194,7 @@ void sr_longest_prefix_iface(struct sr_instance* sr, uint32_t ip, char* iface){
     
     /*comment to self : lowest diff of integer subtraction between ip's will give you longest prefix*/
     
-    diff = abs(ntohl(rt_walker->dest.s_addr) - ntohl(ip));
+    diff = ntohl(rt_walker->dest.s_addr) - ntohl(ip);
 
     if(diff < 16777216){
         memcpy(iface, rt_walker->interface, sr_IFACE_NAMELEN);
@@ -202,9 +202,9 @@ void sr_longest_prefix_iface(struct sr_instance* sr, uint32_t ip, char* iface){
     while(rt_walker->next)
     {
         rt_walker = rt_walker->next; 
-        if(abs(ntohl(rt_walker->dest.s_addr) - ntohl(ip)) < diff){
+        if(ntohl(rt_walker->dest.s_addr) - ntohl(ip) < diff){
             
-            diff = abs(ntohl(rt_walker->dest.s_addr) - ntohl(ip));
+            diff = ntohl(rt_walker->dest.s_addr) - ntohl(ip);
             memcpy(iface, rt_walker->interface, sr_IFACE_NAMELEN);
         }
         
