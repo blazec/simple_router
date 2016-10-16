@@ -15,9 +15,28 @@
   This function gets called every second. For each request sent out, we keep
   checking whether we should resend an request or destroy the arp request.
   See the comments in the header file for an idea of what it should look like.
+
+  you should add code that iterates through the ARP request queue and re-sends 
+  any outstanding ARP requests that haven’t been sent in the past second. If an 
+  ARP request has been sent 5 times with no response, a destination host unreachable 
+  should go back to all the sender of packets that were waiting on a reply to this 
+  ARP request.
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
+
+    time_t curtime = time(NULL);
+
+    for (req = sr->cache.requests; req != NULL; req = req->next) {
+        if ((req->times_sent < 5) && (difftime(curtime,req->sent) > 1.0)){
+            handle_arpreq(req);
+        }
+        else if(req->times_sent == 5){
+            //send_host_unreachable(req->packets);
+        }
+    }
+    
     /* Fill this in */
+
 }
 
 /* You should not need to touch the rest of this code. */
