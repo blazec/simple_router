@@ -105,7 +105,7 @@ void sr_handlepacket(struct sr_instance* sr,
 			struct sr_packet *pkt, *nxt;
         
         	for (pkt = req->packets; pkt; pkt = nxt) {
-        		handle_ip(sr, pkt->buf, pkt->len, interface);
+        		handle_ip(sr, pkt->buf, pkt->len, pkt->iface);
             	nxt = pkt->next;
             }
             sr_arpreq_destroy(cache, req);

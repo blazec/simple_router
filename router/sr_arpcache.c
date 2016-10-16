@@ -33,6 +33,9 @@ void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req){
 
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
 
+
+    struct sr_arpcache *cache = &(sr->cache);
+    struct sr_if* iface = 0;
     time_t curtime = time(NULL);
     struct sr_arpreq *req;
     for (req = sr->cache.requests; req != NULL; req = req->next) {
@@ -40,6 +43,13 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
             handle_arpreq(sr, req);
         }
         else if(req->times_sent == 5){
+            struct sr_packet *pkt, *nxt;
+            for (pkt = req->packets; pkt; pkt = nxt) {
+                iface = sr_get_interface(sr, pkt->iface);
+                handle_icmp(sr, pkt->buf, iface, 3, 1);
+                nxt = pkt->next;
+            }
+            sr_arpreq_destroy(cache, req);
             /*send_host_unreachable(req->packets);*/
         }
     }
