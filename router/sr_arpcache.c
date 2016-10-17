@@ -49,12 +49,6 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
 
                 uint8_t* ip_data = pkt->buf +  sizeof(sr_ethernet_hdr_t);
 
-                sr_ip_hdr_t* ip_hdr = (sr_ip_hdr_t *)(ip_data);
-                print_hdr_ip(ip_data);
-                sr_longest_prefix_iface(sr, ip_hdr->ip_src, outgoing_iface);
-                printf("Outgoing SR CACHE%s\n", outgoing_iface);
-                iface = sr_get_interface(sr, outgoing_iface);
-                printf("ARPCACHE iP\n");
                 print_addr_ip_int(iface->ip);
                 handle_icmp(sr, pkt->buf, iface, 3, 1);
                 nxt = pkt->next;

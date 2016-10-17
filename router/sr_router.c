@@ -153,9 +153,6 @@ void handle_ip(struct sr_instance* sr,
 	iface = sr_get_interface_byip(sr, iphdr->ip_dst);
 	if(iface){
 		printf("%d\n", iphdr->ip_src);
-		sr_longest_prefix_iface(sr, iphdr->ip_src, outgoing_iface);
-		printf(" ECHO RIP%s\n", outgoing_iface);
-		iface = sr_get_interface(sr, outgoing_iface);
 		if(iphdr->ip_p == ip_protocol_icmp){
 			if(icmp_hdr->icmp_type == 3){
 				handle_icmp(sr, packet, iface, 3, 1);
@@ -181,10 +178,7 @@ void handle_ip(struct sr_instance* sr,
 	
 	if(iphdr->ip_ttl <=1){
 		printf("Sending TYPE 11 ICMP\n" );
-		/*print_hdrs(packet, len);*/
-		sr_longest_prefix_iface(sr, iphdr->ip_src, outgoing_iface);
-		printf(" ECHO RIP%s\n", outgoing_iface);
-		iface = sr_get_interface(sr, outgoing_iface);
+		iface = sr_get_interface(sr, name);
 		handle_icmp(sr, packet, iface, 11, 0);
 		return;
 	}
@@ -232,11 +226,13 @@ void handle_icmp(struct sr_instance* sr,
 	memcpy(icmp_payload, ip_data, (sizeof(sr_ip_hdr_t) +8));
 
 	struct sr_arpentry* entry = sr_arpcache_lookup(cache, ip_hdr->ip_src);
+	sr_longest_prefix_iface(sr, ip_hdr->ip_src, outgoing_iface);
 
 	uint8_t* icmp_data = packet +  sizeof(sr_ethernet_hdr_t)+  sizeof(sr_ip_hdr_t);
 
 	uint32_t ip_src = ip_hdr->ip_src;
 	
+	struct sr_if* out_iface = 0;
 	
 	ip_hdr->ip_p = ip_protocol_icmp;
 		
@@ -275,11 +271,13 @@ void handle_icmp(struct sr_instance* sr,
 		}
 		
 	}
+	sr_longest_prefix_iface(sr, ip_hdr->ip_src, outgoing_iface);
 	
 	if(entry){
 		/*bzero(eth_hdr->ether_dhost, 6);*/
+		out_iface = sr_get_interface(sr, outgoing_iface);
 		memcpy(eth_hdr->ether_dhost, entry->mac, ETHER_ADDR_LEN);
-		memcpy(eth_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN);
+		memcpy(eth_hdr->ether_shost, out_iface->addr, ETHER_ADDR_LEN);
 		eth_hdr->ether_type = htons(ethertype_ip);
 
 		printf("SOURCE OF ICMP 11\n");
@@ -295,15 +293,15 @@ void handle_icmp(struct sr_instance* sr,
 		ip_hdr->ip_dst = entry->ip;	
 		ip_hdr->ip_sum = cksum(ip_data, sizeof(sr_ip_hdr_t));
 
-		if (sr_send_packet(sr, packet, len, iface->name) == -1 ) {
+		if (sr_send_packet(sr, packet, len, outgoing_iface) == -1 ) {
 					fprintf(stderr, "CANNOT SEND ICMP PACKET \n");
 				}
 	}
 	else{
 		printf("why am i here\n");
 		print_addr_ip_int(ntohl(ip_hdr->ip_src));
-		/*sr_longest_prefix_iface(sr, ip_hdr->ip_src, outgoing_iface);*/
-		sr_arpcache_queuereq(cache, ip_hdr->ip_src, packet, len, iface->name);
+		
+		sr_arpcache_queuereq(cache, ip_hdr->ip_src, packet, len, outgoing_iface);
 	}
 
 }
