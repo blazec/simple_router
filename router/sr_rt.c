@@ -182,8 +182,8 @@ void sr_print_routing_entry(struct sr_rt* entry)
 void sr_longest_prefix_iface(struct sr_instance* sr, uint32_t ip, char* iface){
     struct sr_rt* rt_walker = 0;
     /*char iface[sr_IFACE_NAMELEN];*/
-    uint32_t diff = 0;
-
+    uint32_t diff=0, subnet = 0, x=0;
+    
     if(sr->routing_table == 0)
     {
         printf(" *warning* Routing table empty \n");
@@ -191,20 +191,28 @@ void sr_longest_prefix_iface(struct sr_instance* sr, uint32_t ip, char* iface){
     }
 
     rt_walker = sr->routing_table;
-    
+    subnet = ntohl(rt_walker->dest.s_addr & rt_walker->mask.s_addr);
+    diff = ntohl(ip & rt_walker->mask.s_addr);
+    /*printf("diff : %lu\n", diff);
+    printf("subnet: %lu\n", subnet);
     /*comment to self : lowest diff of integer subtraction between ip's will give you longest prefix*/
-    
-    diff = ntohl(rt_walker->dest.s_addr) - ntohl(ip);
+    /*
+    printf("Destination Address: %lu\n", ntohl(rt_walker->dest.s_addr));
+    printf("Looking for: %lu\n", ip);
+    printf("Looking for: %lu\n", ntohl(ip));
+    printf("Destination Address: %lu\n", diff);*/
 
-    if(diff < 16777216){
+    if(diff == subnet){
         memcpy(iface, rt_walker->interface, sr_IFACE_NAMELEN);
     }
     while(rt_walker->next)
     {
         rt_walker = rt_walker->next; 
-        if(ntohl(rt_walker->dest.s_addr) - ntohl(ip) < diff){
+        subnet = ntohl(rt_walker->dest.s_addr & rt_walker->mask.s_addr);
+        diff = ntohl(ip & rt_walker->mask.s_addr);
+        if(diff == subnet){
+            /*printf("%d\n", diff);*/
             
-            diff = ntohl(rt_walker->dest.s_addr) - ntohl(ip);
             memcpy(iface, rt_walker->interface, sr_IFACE_NAMELEN);
         }
         

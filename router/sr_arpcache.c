@@ -23,19 +23,19 @@
   ARP request.
 */
 void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req){
-    /*printf("ip of req that needs sending %lu\n", ntohl(req->ip));*/
+    printf("ip of req that needs sending %lu\n", ntohl(req->ip));
     req->times_sent++;
     req->sent = time(NULL);
-    printf("outgoing interface of arp %s\n", req->packets->iface);
+    printf("outgoing interface of arp %s times sent %d\n", req->packets->iface, req->times_sent);
     send_arprequest(sr, req->ip, req->packets->iface);
 
 }
 
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
 
-
-    struct sr_arpcache *cache = &(sr->cache);
     struct sr_if* iface = 0;
+    struct sr_arpcache *cache = &(sr->cache);
+    char outgoing_iface[sr_IFACE_NAMELEN];
     time_t curtime = time(NULL);
     struct sr_arpreq *req;
     for (req = sr->cache.requests; req != NULL; req = req->next) {
@@ -43,9 +43,19 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
             handle_arpreq(sr, req);
         }
         else if(req->times_sent == 5){
+
             struct sr_packet *pkt, *nxt;
             for (pkt = req->packets; pkt; pkt = nxt) {
-                iface = sr_get_interface(sr, pkt->iface);
+
+                uint8_t* ip_data = pkt->buf +  sizeof(sr_ethernet_hdr_t);
+
+                sr_ip_hdr_t* ip_hdr = (sr_ip_hdr_t *)(ip_data);
+                print_hdr_ip(ip_data);
+                sr_longest_prefix_iface(sr, ip_hdr->ip_src, outgoing_iface);
+                printf("Outgoing SR CACHE%s\n", outgoing_iface);
+                iface = sr_get_interface(sr, outgoing_iface);
+                printf("ARPCACHE iP\n");
+                print_addr_ip_int(iface->ip);
                 handle_icmp(sr, pkt->buf, iface, 3, 1);
                 nxt = pkt->next;
             }
