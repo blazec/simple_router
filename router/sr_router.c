@@ -135,7 +135,7 @@ void sr_handlepacket(struct sr_instance* sr,
 void handle_ip(struct sr_instance* sr, 
 		uint8_t * packet/* lent */,
         unsigned int len,
-        char* name)
+        char* name/* wher its going*/)
 
 {
 	struct sr_if* iface = 0;
@@ -149,17 +149,24 @@ void handle_ip(struct sr_instance* sr,
 
 	sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t*) packet;
 
+	
+
+	if((iphdr->ip_p == ip_protocol_icmp) && (icmp_hdr->icmp_type == 3) && (icmp_hdr->icmp_code == 1)){
+		printf("IM HERE with %s\n", name);
+			iface = sr_get_interface(sr, name);
+			print_addr_ip_int(ntohl(iface->ip));
+			handle_icmp(sr, packet, iface, 3, 1);
+			return;
+		}
+
 	/* check if this packet is for one of the router's interfaces*/
 	iface = sr_get_interface_byip(sr, iphdr->ip_dst);
 	if(iface){
 		printf("%d\n", iphdr->ip_src);
 		if(iphdr->ip_p == ip_protocol_icmp){
-			if(icmp_hdr->icmp_type == 3){
-				handle_icmp(sr, packet, iface, 3, 1);
-			}
-			else{
-				handle_icmp(sr, packet, iface, 0, 0);
-			}
+			
+			handle_icmp(sr, packet, iface, 0, 0);
+			
 		}
 		else{
 			handle_icmp(sr, packet, iface, 3, 3);
@@ -233,7 +240,7 @@ void handle_icmp(struct sr_instance* sr,
 	uint32_t ip_src = ip_hdr->ip_src;
 	
 	struct sr_if* out_iface = 0;
-	
+
 	ip_hdr->ip_p = ip_protocol_icmp;
 		
 	ip_hdr->ip_sum = 0;
@@ -257,7 +264,7 @@ void handle_icmp(struct sr_instance* sr,
 
 		if(icmp_hdr->icmp_type != (uint8_t)type){
 			ip_hdr->ip_len = htons(56);
-
+			/*ip_hdr->ip_dst = iface->ip;*/
 			icmp_hdr->icmp_type = (uint8_t)type;
 			icmp_hdr->icmp_code = (uint8_t)code;
 			icmp_hdr->icmp_sum = 0;
@@ -265,10 +272,10 @@ void handle_icmp(struct sr_instance* sr,
 			memcpy(icmp_hdr->data, icmp_payload, (sizeof(sr_ip_hdr_t) +8));
 			icmp_hdr->icmp_sum = cksum(icmp_data, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
 		}
-		else{
+		/*else{
 			printf("SENDING 11 TO IF: %s\n", iface->name);
 			ip_hdr->ip_dst = iface->ip;
-		}
+		}*/
 		
 	}
 	sr_longest_prefix_iface(sr, ip_hdr->ip_src, outgoing_iface);

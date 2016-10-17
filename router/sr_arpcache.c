@@ -46,10 +46,7 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
 
             struct sr_packet *pkt, *nxt;
             for (pkt = req->packets; pkt; pkt = nxt) {
-
-                uint8_t* ip_data = pkt->buf +  sizeof(sr_ethernet_hdr_t);
-
-                print_addr_ip_int(iface->ip);
+                iface = sr_get_interface(sr, pkt->iface);
                 handle_icmp(sr, pkt->buf, iface, 3, 1);
                 nxt = pkt->next;
             }
