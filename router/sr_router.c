@@ -191,7 +191,7 @@ void handle_ip(struct sr_instance* sr,
 	}
 
 
-	if(entry){/*cache hit*/
+	if(entry && entry->valid == 1){/*cache hit*/
 		iface = sr_get_interface(sr, outgoing_iface);
 		memcpy(eth_hdr->ether_dhost, entry->mac, ETHER_ADDR_LEN);
 		memcpy(eth_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN);
@@ -280,7 +280,7 @@ void handle_icmp(struct sr_instance* sr,
 	}
 	sr_longest_prefix_iface(sr, ip_hdr->ip_src, outgoing_iface);
 	
-	if(entry){
+	if(entry && entry->valid == 1){
 		/*bzero(eth_hdr->ether_dhost, 6);*/
 		out_iface = sr_get_interface(sr, outgoing_iface);
 		memcpy(eth_hdr->ether_dhost, entry->mac, ETHER_ADDR_LEN);
