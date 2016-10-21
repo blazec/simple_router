@@ -275,7 +275,7 @@ void handle_icmp(struct sr_instance* sr,
 		icmp_hdr->icmp_sum = cksum(icmp_hdr, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
 	}
 	else if(type == 3 || type == 11){
-		/*len = 70;*/
+		len = 70;
 		sr_icmp_t3_hdr_t* icmp_hdr = (sr_icmp_t3_hdr_t *)icmp_data;
 		printf("i should not be here\n");
 		
