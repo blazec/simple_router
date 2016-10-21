@@ -68,7 +68,7 @@ int sr_read_from_server(struct sr_instance* );
 void sr_init(struct sr_instance* );
 void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
 void handle_ip(struct sr_instance* sr, uint8_t * packet/* lent */,unsigned int len, char* name);
-void handle_icmp(struct sr_instance* sr, uint8_t * packet, struct sr_if* iface, int type, int code);
+void handle_icmp(struct sr_instance* sr, uint8_t * packet, int len, struct sr_if* iface, int type, int code);
 void send_arprequest(struct sr_instance* sr, uint32_t ip, char* name);
 void send_arpreply(struct sr_instance* sr, uint8_t* packet, unsigned int len, const char* name);
 

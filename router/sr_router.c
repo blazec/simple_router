@@ -175,7 +175,7 @@ void handle_ip(struct sr_instance* sr,
 		printf("IM HERE with %s\n", name);
 			iface = sr_get_interface(sr, name);
 			print_addr_ip_int(ntohl(iface->ip));
-			handle_icmp(sr, packet, iface, 3, 1);
+			handle_icmp(sr, packet, len, iface, 3, 1);
 			return;
 		}
 
@@ -185,11 +185,11 @@ void handle_ip(struct sr_instance* sr,
 		printf("%d\n", ntohl(iphdr->ip_src));
 		if(iphdr->ip_p == ip_protocol_icmp){
 			
-			handle_icmp(sr, packet, iface, 0, 0);
+			handle_icmp(sr, packet, len, iface, 0, 0);
 			
 		}
 		else{
-			handle_icmp(sr, packet, iface, 3, 3);
+			handle_icmp(sr, packet,len, iface, 3, 3);
 		}
 		return;
 	}
@@ -206,7 +206,7 @@ void handle_ip(struct sr_instance* sr,
 	if(iphdr->ip_ttl <=1){
 		printf("Sending TYPE 11 ICMP\n" );
 		iface = sr_get_interface(sr, name);
-		handle_icmp(sr, packet, iface, 11, 0);
+		handle_icmp(sr, packet, len,iface, 11, 0);
 		return;
 	}
 
@@ -232,16 +232,15 @@ void handle_ip(struct sr_instance* sr,
 	}
 	else{
 		iface = sr_get_interface(sr, name);
-		handle_icmp(sr, packet, iface, 3, 0);
+		handle_icmp(sr, packet, len,iface, 3, 0);
 	}
 }
 
 void handle_icmp(struct sr_instance* sr, 
-				uint8_t * packet, 
+				uint8_t * packet, int len,
 				struct sr_if* iface, 
 				int type, int code)
 {
-	unsigned int len=98;
 	char outgoing_iface[sr_IFACE_NAMELEN];
 
 	struct sr_arpcache *cache = &(sr->cache);
@@ -276,7 +275,7 @@ void handle_icmp(struct sr_instance* sr,
 		icmp_hdr->icmp_sum = cksum(icmp_hdr, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
 	}
 	else if(type == 3 || type == 11){
-		len = 70;
+		/*len = 70;*/
 		sr_icmp_t3_hdr_t* icmp_hdr = (sr_icmp_t3_hdr_t *)icmp_data;
 		printf("i should not be here\n");
 		
@@ -310,7 +309,7 @@ void handle_icmp(struct sr_instance* sr,
 		
 		memcpy(eth_hdr->ether_dhost, entry->mac, sizeof(uint8_t)*ETHER_ADDR_LEN);
 		memcpy(eth_hdr->ether_shost, out_iface->addr, sizeof(uint8_t)*ETHER_ADDR_LEN);
-		eth_hdr->ether_type = htons(ethertype_ip);
+		/*eth_hdr->ether_type = htons(ethertype_ip);*/
 
 		
 		/*print_addr_ip_int(ntohl(iface->ip));

@@ -47,7 +47,7 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
             struct sr_packet *pkt, *nxt;
             for (pkt = req->packets; pkt; pkt = nxt) {
                 iface = sr_get_interface(sr, pkt->iface);
-                handle_icmp(sr, pkt->buf, iface, 3, 1);
+                handle_icmp(sr, pkt->buf, pkt->len, iface, 3, 1);
                 nxt = pkt->next;
             }
             sr_arpreq_destroy(cache, req);
