@@ -273,7 +273,7 @@ void handle_icmp(struct sr_instance* sr,
 		icmp_hdr->icmp_code = (uint8_t)code;
 		bzero(&(icmp_hdr->icmp_sum), 2);
 	
-		icmp_hdr->icmp_sum = cksum(icmp_data, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
+		icmp_hdr->icmp_sum = cksum(icmp_hdr, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
 	}
 	else if(type == 3 || type == 11){
 		len = 70;
@@ -290,7 +290,7 @@ void handle_icmp(struct sr_instance* sr,
 			bzero(&(icmp_hdr->icmp_sum), 2);
 			
 			memcpy(icmp_hdr->data, icmp_payload, (sizeof(sr_ip_hdr_t) +8));
-			icmp_hdr->icmp_sum = cksum(icmp_data, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
+			icmp_hdr->icmp_sum = cksum(icmp_hdr, (len-(sizeof(sr_ethernet_hdr_t)+ sizeof(sr_ip_hdr_t))));
 		/*}*/
 		/*else{
 			printf("SENDING 11 TO IF: %s\n", iface->name);
@@ -301,8 +301,8 @@ void handle_icmp(struct sr_instance* sr,
 	sr_longest_prefix_iface(sr, ip_hdr->ip_src, outgoing_iface);
 	out_iface = sr_get_interface(sr, outgoing_iface);
 	ip_hdr->ip_ttl = 100;
-	ip_hdr->ip_src = ip_hdr->ip_dst;
 	ip_hdr->ip_dst = ip_src;	
+	ip_hdr->ip_src = iface->ip;
 	
 	if(entry && entry->valid == 1){
 		sr_arpcache_dump(cache);
@@ -322,7 +322,8 @@ void handle_icmp(struct sr_instance* sr,
 		/* Create IP packet */
 		
 		bzero(&(ip_hdr->ip_sum), 2);
-		ip_hdr->ip_sum = cksum(ip_data, sizeof(sr_ip_hdr_t));
+		ip_hdr->ip_sum = cksum(ip_hdr, 4*(ip_hdr->ip_hl));
+		/*cksum(ip_data, sizeof(sr_ip_hdr_t));*/
 
 		if (sr_send_packet(sr, packet, len, outgoing_iface) == -1 ) {
 					fprintf(stderr, "CANNOT SEND ICMP PACKET \n");
