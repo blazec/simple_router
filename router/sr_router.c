@@ -98,7 +98,7 @@ void sr_handlepacket(struct sr_instance* sr,
 		sr_arp_hdr_t* arp_hdr = (sr_arp_hdr_t *) arp_data;
 		if (arp_hdr->ar_op == htons(arp_op_request)){
 			send_arpreply(sr, packet, len, interface);
-			sr_print_routing_table(sr);
+			/*sr_print_routing_table(sr);*/
 		}
 
 		else if(arp_hdr->ar_op == htons(arp_op_reply)){
@@ -111,8 +111,8 @@ void sr_handlepacket(struct sr_instance* sr,
 		      	assert(out_iface);
 		      /* update ethernet header */
 		      	sr_ethernet_hdr_t* ethernet_hdr = (sr_ethernet_hdr_t *)(pkt->buf);
-		      	memcpy(ethernet_hdr->ether_dhost, arp_hdr->ar_sha, ETHER_ADDR_LEN);
-		      	memcpy(ethernet_hdr->ether_shost, out_iface->addr, ETHER_ADDR_LEN);
+		      	memcpy(ethernet_hdr->ether_dhost, arp_hdr->ar_sha, sizeof(uint8_t)*ETHER_ADDR_LEN);
+		      	memcpy(ethernet_hdr->ether_shost, out_iface->addr, sizeof(uint8_t)*ETHER_ADDR_LEN);
 		        
 		      /* update ip header */
 
@@ -124,7 +124,7 @@ void sr_handlepacket(struct sr_instance* sr,
 		      	ip_hdr->ip_sum = ip_cksum;
 
 		      	printf("Send packet:\n");
-		      	print_hdrs(pkt->buf, pkt->len);
+		      	/*print_hdrs(pkt->buf, pkt->len);*/
 		      	sr_send_packet(sr, pkt->buf, pkt->len, pkt->iface);
             	nxt = pkt->next;
             }
@@ -155,7 +155,7 @@ void sr_handlepacket(struct sr_instance* sr,
 void handle_ip(struct sr_instance* sr, 
 		uint8_t * packet/* lent */,
         unsigned int len,
-        char* name/* wher its going*/)
+        char* name/* sent from*/)
 
 {
 	struct sr_if* iface = 0;
@@ -182,7 +182,7 @@ void handle_ip(struct sr_instance* sr,
 	/* check if this packet is for one of the router's interfaces*/
 	iface = sr_get_interface_byip(sr, iphdr->ip_dst);
 	if(iface){
-		printf("%d\n", iphdr->ip_src);
+		printf("%d\n", ntohl(iphdr->ip_src));
 		if(iphdr->ip_p == ip_protocol_icmp){
 			
 			handle_icmp(sr, packet, iface, 0, 0);
@@ -212,10 +212,10 @@ void handle_ip(struct sr_instance* sr,
 
 
 	if(entry && entry->valid == 1){/*cache hit*/
-		sr_arpcache_dump(cache);
+		
 		iface = sr_get_interface(sr, outgoing_iface);
-		memcpy(eth_hdr->ether_dhost, entry->mac, ETHER_ADDR_LEN);
-		memcpy(eth_hdr->ether_shost, iface->addr, ETHER_ADDR_LEN);
+		memcpy(eth_hdr->ether_dhost, entry->mac, sizeof(uint8_t)*ETHER_ADDR_LEN);
+		memcpy(eth_hdr->ether_shost, iface->addr, sizeof(uint8_t)*ETHER_ADDR_LEN);
 
 		iphdr->ip_sum = 0;
 		iphdr->ip_ttl--;
@@ -227,7 +227,7 @@ void handle_ip(struct sr_instance* sr,
 		
 	}
 	else if(outgoing_iface[0]!=0){ 
-		sr_arpcache_dump(cache);
+		
 		sr_arpcache_queuereq(cache, iphdr->ip_dst, packet, len, outgoing_iface);
 	}
 	else{
@@ -305,34 +305,33 @@ void handle_icmp(struct sr_instance* sr,
 	ip_hdr->ip_src = iface->ip;
 	
 	if(entry && entry->valid == 1){
-		sr_arpcache_dump(cache);
+		
 		/*bzero(eth_hdr->ether_dhost, 6);*/
 		
-		memcpy(eth_hdr->ether_dhost, entry->mac, ETHER_ADDR_LEN);
-		memcpy(eth_hdr->ether_shost, out_iface->addr, ETHER_ADDR_LEN);
+		memcpy(eth_hdr->ether_dhost, entry->mac, sizeof(uint8_t)*ETHER_ADDR_LEN);
+		memcpy(eth_hdr->ether_shost, out_iface->addr, sizeof(uint8_t)*ETHER_ADDR_LEN);
 		eth_hdr->ether_type = htons(ethertype_ip);
 
 		
-		print_addr_ip_int(ntohl(iface->ip));
+		/*print_addr_ip_int(ntohl(iface->ip));
 		
 		
 	
-		print_addr_ip_int(ntohl(entry->ip));
+		/*print_addr_ip_int(ntohl(entry->ip));
 
 		/* Create IP packet */
 		
 		bzero(&(ip_hdr->ip_sum), 2);
 		ip_hdr->ip_sum = cksum(ip_hdr, 4*(ip_hdr->ip_hl));
 		/*cksum(ip_data, sizeof(sr_ip_hdr_t));*/
-
+		printf("hit %s\n", outgoing_iface);
 		if (sr_send_packet(sr, packet, len, outgoing_iface) == -1 ) {
 					fprintf(stderr, "CANNOT SEND ICMP PACKET \n");
 				}
 	}
 	else{
 		
-		print_addr_ip_int(ntohl(ip_hdr->ip_src));
-		sr_arpcache_dump(cache);
+		printf("cache miss %s\n", outgoing_iface);
 		sr_arpcache_queuereq(cache, ip_hdr->ip_dst, packet, len, outgoing_iface);
 	}
 
@@ -355,8 +354,8 @@ void send_arprequest(struct sr_instance* sr, uint32_t ip, char* name)
 	
 	sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t*) arp_packet;
 	/*bzero(eth_hdr->ether_dhost, 6);*/
-	memcpy(eth_hdr->ether_dhost, broadcast_addr, ETHER_ADDR_LEN);
-	memcpy(eth_hdr->ether_shost, iface->addr, 6);
+	memcpy(eth_hdr->ether_dhost, broadcast_addr, sizeof(uint8_t)*ETHER_ADDR_LEN);
+	memcpy(eth_hdr->ether_shost, iface->addr, sizeof(uint8_t)*ETHER_ADDR_LEN);
 	eth_hdr->ether_type = htons(ethertype_arp);
 	
 	/* Create ARP packet */
@@ -368,9 +367,9 @@ void send_arprequest(struct sr_instance* sr, uint32_t ip, char* name)
 	arp_hdr->ar_hln = (unsigned char) 6;
 	arp_hdr->ar_pln = (unsigned char) 4;
 	arp_hdr->ar_op = htons(arp_op_request);
-	memcpy(arp_hdr->ar_sha, iface->addr, ETHER_ADDR_LEN);
+	memcpy(arp_hdr->ar_sha, iface->addr, sizeof(uint8_t)*ETHER_ADDR_LEN);
 	arp_hdr->ar_sip = iface->ip;
-	bzero(arp_hdr->ar_tha, ETHER_ADDR_LEN);
+	bzero(arp_hdr->ar_tha, sizeof(uint8_t)*ETHER_ADDR_LEN);
 	arp_hdr->ar_tip = ip;
 	
 	if (sr_send_packet(sr, arp_packet, len, iface->name) == -1 ) {
