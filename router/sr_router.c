@@ -108,24 +108,24 @@ void sr_handlepacket(struct sr_instance* sr,
         	for (pkt = req->packets; pkt; pkt = nxt) {
         		/*handle_ip(sr, pkt->buf, pkt->len, pkt->iface);*/
         		out_iface = sr_get_interface(sr, pkt->iface);
-		      assert(out_iface);
+		      	assert(out_iface);
 		      /* update ethernet header */
-		      sr_ethernet_hdr_t* ethernet_hdr = (sr_ethernet_hdr_t *)(pkt->buf);
-		      memcpy(ethernet_hdr->ether_dhost, arp_hdr->ar_sha, ETHER_ADDR_LEN);
-		      memcpy(ethernet_hdr->ether_shost, out_iface->addr, ETHER_ADDR_LEN);
+		      	sr_ethernet_hdr_t* ethernet_hdr = (sr_ethernet_hdr_t *)(pkt->buf);
+		      	memcpy(ethernet_hdr->ether_dhost, arp_hdr->ar_sha, ETHER_ADDR_LEN);
+		      	memcpy(ethernet_hdr->ether_shost, out_iface->addr, ETHER_ADDR_LEN);
 		        
 		      /* update ip header */
 
-		      sr_ip_hdr_t* ip_hdr = (sr_ip_hdr_t *)(pkt->buf + sizeof(struct sr_ethernet_hdr));
+		      	sr_ip_hdr_t* ip_hdr = (sr_ip_hdr_t *)(pkt->buf + sizeof(struct sr_ethernet_hdr));
 
-		      ip_hdr->ip_ttl--;
-		      bzero(&(ip_hdr->ip_sum), 2);
-		      uint16_t ip_cksum = cksum(ip_hdr, sizeof(struct sr_ip_hdr));
-		      ip_hdr->ip_sum = ip_cksum;
+		      	ip_hdr->ip_ttl--;
+		      	bzero(&(ip_hdr->ip_sum), 2);
+		      	uint16_t ip_cksum = cksum(ip_hdr, sizeof(struct sr_ip_hdr));
+		      	ip_hdr->ip_sum = ip_cksum;
 
-		      printf("Send packet:\n");
-		      print_hdrs(pkt->buf, pkt->len);
-		      sr_send_packet(sr, pkt->buf, pkt->len, pkt->iface);
+		      	printf("Send packet:\n");
+		      	print_hdrs(pkt->buf, pkt->len);
+		      	sr_send_packet(sr, pkt->buf, pkt->len, pkt->iface);
             	nxt = pkt->next;
             }
             sr_arpreq_destroy(cache, req);
@@ -301,8 +301,8 @@ void handle_icmp(struct sr_instance* sr,
 	sr_longest_prefix_iface(sr, ip_hdr->ip_src, outgoing_iface);
 	out_iface = sr_get_interface(sr, outgoing_iface);
 	ip_hdr->ip_ttl = 100;
+	ip_hdr->ip_src = ip_hdr->ip_dst;
 	ip_hdr->ip_dst = ip_src;	
-	ip_hdr->ip_src = iface->ip;
 	
 	if(entry && entry->valid == 1){
 		sr_arpcache_dump(cache);
